@@ -748,10 +748,10 @@ bool RECEIVE_ATTR RCSwitch::receiveProtocol(const int p, unsigned int changeCoun
       }
     }
     //Assuming the longer pulse length is the pulse captured in timings[FirstTiming]
-    // берем наибольшее значение из Header
+    // take the largest value from Header
     const unsigned int syncLengthInPulses =  ((pro.Header.low) > (pro.Header.high)) ? (pro.Header.low) : (pro.Header.high);
-    // определяем длительность Te как длительность первого импульса header деленную на количество импульсов в нем
-    // или как длительность импульса preamble деленную на количество Te в нем
+    // we define the duration Te as the duration of the first pulse header divided by the number of pulses in it
+    // or as the duration of the preamble pulse divided by the amount of Te in it
     unsigned int sdelay = 0;
     if (syncLengthInPulses > 0) {
       sdelay = RCSwitch::timings[FirstTiming] / syncLengthInPulses;
@@ -760,14 +760,14 @@ bool RECEIVE_ATTR RCSwitch::receiveProtocol(const int p, unsigned int changeCoun
     }
     const unsigned int delay = sdelay;
     // nReceiveTolerance = 60
-    // допустимое отклонение длительностей импульсов на 60 %
+    // permissible deviation of pulse durations by 60 %
     const unsigned int delayTolerance = delay * RCSwitch::nReceiveTolerance / 100;
     
-    // 0 - sync перед preamble или data
-    // BeginData - сдвиг на 1 или 2 от sync к preamble/data
-    // FirstTiming - сдвиг на preamble к header
-    // firstDataTiming первый импульс data
-    // bitChangeCount - количество импульсов в data
+    // 0 - sync before preamble or data
+    // BeginData - shift by 1 or 2 from sync to preamble/data
+    // FirstTiming - shift on preamble to header
+    // firstDataTiming first pulse data
+    // bitChangeCount - number of pulses in data
 
     /* For protocols that start low, the sync period looks like
      *               _________
@@ -786,9 +786,9 @@ bool RECEIVE_ATTR RCSwitch::receiveProtocol(const int p, unsigned int changeCoun
      *
      * The 2nd saved duration starts the data
      */
-    // если invertedSignal=false, то сигнал начинается с 1 элемента массива (высокий уровень)
-    // если invertedSignal=true, то сигнал начинается со 2 элемента массива (низкий уровень)
-    // добавляем поправку на Преамбулу и Хедер
+    // if invertedSignal=false, then the signal starts from 1 array element (high level)
+    // if invertedSignal=true, then the signal starts from the 2nd array element (low level)
+    // adding an amendment to the Preamble and Header
     const unsigned int firstDataTiming = BeginData + FirstTiming;
     unsigned int bitChangeCount = changeCount - firstDataTiming - 1 + pro.invertedSignal;
     if (bitChangeCount > 128) {
@@ -840,7 +840,7 @@ void RECEIVE_ATTR RCSwitch::handleInterrupt() {
       (diff(RCSwitch::buftimings[3], RCSwitch::buftimings[2]) < 50 &&
         diff(RCSwitch::buftimings[2], RCSwitch::buftimings[1]) < 50 &&
         changeCount > 25)) { 
-    // принят длинный импульс продолжительностью более nSeparationLimit (4300)
+    // a long pulse with a duration of more than nSeparationLimit is received (4300)
     // A long stretch without signal level change occurred. This could
     // be the gap between two transmission.
     if (diff(duration, RCSwitch::timings[0]) < 400 ||
@@ -849,18 +849,18 @@ void RECEIVE_ATTR RCSwitch::handleInterrupt() {
           diff(RCSwitch::buftimings[2], RCSwitch::timings[2]) < 50 &&
           diff(RCSwitch::buftimings[1], RCSwitch::timings[3]) < 50 &&
           changeCount > 25)) {
-      // если его длительность отличается от первого импульса, 
-      // который приняли раньше, менее чем на +-200 (исходно 200)
-      // то считаем это повторным пакетом и игнорируем его
+      // if its duration differs from the first impulse, 
+      // which was accepted earlier, by less than +-200 (originally 200)
+      // then we consider this a repeated packet and ignore it
       // This long signal is close in length to the long signal which
       // started the previously recorded timings; this suggests that
       // it may indeed by a a gap between two transmissions (we assume
       // here that a sender will send the signal multiple times,
       // with roughly the same gap between them).
 
-      // количество повторных пакетов
+      //number of repeated packets
       repeatCount++;
-      // при приеме второго повторного начинаем анализ принятого первым
+      // when receiving the second repeat, we begin the analysis of the first received
       if (repeatCount == 1) {
         for(unsigned int i = 1; i <= numProto; i++) {
           if (receiveProtocol(i, changeCount)) {
@@ -868,12 +868,12 @@ void RECEIVE_ATTR RCSwitch::handleInterrupt() {
             break;
           }
         }
-        // очищаем количество повторных пакетов
+        // clear the number of repeated packets
         repeatCount = 0;
       }
     }
-    // дительность отличается более чем на +-200 от первого
-    // принятого ранее, очищаем счетчик для приема нового пакета
+    // duration differs by more than +-200 from the first
+    // received earlier, clear the counter to receive a new packet
     changeCount = 0;
     if (diff(RCSwitch::buftimings[3], RCSwitch::buftimings[2]) < 50 &&
         diff(RCSwitch::buftimings[2], RCSwitch::buftimings[1]) < 50) {
@@ -890,8 +890,8 @@ void RECEIVE_ATTR RCSwitch::handleInterrupt() {
     repeatCount = 0;
   }
 
-  // заносим в массив длительность очередного принятого импульса
-  if (changeCount > 0 && duration < 100) { // игнорируем шумовые всплески менее 100 мкс
+  // enter the duration of the next received pulse into the array
+  if (changeCount > 0 && duration < 100) { // we ignore noise bursts less than 100 μs
     RCSwitch::timings[changeCount-1] += duration;   
   } else {
     RCSwitch::timings[changeCount++] = duration;
@@ -977,7 +977,7 @@ unsigned long Keeloq::Decrypt(unsigned long data) {
   */
 void Keeloq::NormLearn(unsigned long FixSN) {
   unsigned long tmpFixSN;
-  // заготовки для формируемого ключа
+  // blanks for the key being formed
   unsigned long NewkeyHigh;
   unsigned long NewkeyLow;
 

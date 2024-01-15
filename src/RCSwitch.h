@@ -57,7 +57,7 @@
 
 // Number of maximum high/Low changes per packet.
 // We can handle up to (unsigned long) => 32 bit * 2 H/L changes per bit + 2 for sync
-// Для keeloq нужно увеличить RCSWITCH_MAX_CHANGES до 23+1+66*2+1=157
+// For keeloq you need to increase RCSWITCH_MAX_CHANGES to 23+1+66*2+1=157
 #define RCSWITCH_MAX_CHANGES 67        // default 67
 
 // separationLimit: minimum microseconds between received codes, closer codes are ignored.
@@ -187,7 +187,7 @@ class RCSwitch {
      * timings[0] contains sync timing, followed by a number of bits
      */
     static unsigned int timings[RCSWITCH_MAX_CHANGES];
-    // буфер длительностей последних четырех пакетов, [0] - последний
+    // buffer of durations of the last four packets, [0] - last
     static unsigned int buftimings[4];
     #endif
 
