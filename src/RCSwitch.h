@@ -10,7 +10,7 @@
   - Frank Oltmanns / <first name>.<last name>(at)gmail(dot)com
   - Max Horn / max(at)quendi(dot)de
   - Robert ter Vehn / <first name>.<last name>(at)gmail(dot)com
-  
+
   Project home: https://github.com/sui77/rc-switch/
 
   This library is free software; you can redistribute it and/or
@@ -66,11 +66,36 @@
 // should be set to the minimum value of pulselength * the sync signal
 #define RCSWITCH_SEPARATION_LIMIT 4100
 
+#ifdef RADIOLIBSX127X
+// disable direct hw access
+// decode by calling decodePulseGapDuration
+#define hwPinMode(pin, mode) // pinMode(pin, mode)
+#define hwAttachInterrupt(pin, ISR, mode) // attachInterrupt((pin), ISR, mode)
+#define	hwDetachInterrupt(pin) // detachInterrupt(pin)
+#define hwDigitalWrite(pin, value) // digitalWrite(pin, value)
+#define hwReturn(state) return (state)
+#define hwDelayMicroseconds(duration) delayMicroseconds(duration)
+#define hwSafeDelayMicroseconds(duration) safeDelayMicroseconds(duration)
+#define hwDigitalWriteDelayMicroseconds(pin, value, duration) hwDigitalWrite(pin, value); hwDelayMicroseconds(duration)
+#define hwDigitalWriteSafeDelayMicroseconds(pin, value, duration) hwDigitalWrite(pin, value); hwSafeDelayMicroseconds(duration)
+#else // direct hardware control
+#define hwPinMode(pin, mode) pinMode(pin, mode)
+#define hwAttachInterrupt(pin, ISR, mode) attachInterrupt(pin, ISR, mode)
+#define	hwDetachInterrupt(pin) detachInterrupt(pin)
+#define hwReturn(state) return (state)
+#define hwDigitalWrite(pin, value) digitalWrite(pin, value)
+#define hwDelayMicroseconds(duration) delayMicroseconds(duration)
+#define hwSafeDelayMicroseconds(duration) safeDelayMicroseconds(duration)
+#define hwDigitalWriteDelayMicroseconds(pin, value, duration) hwDigitalWrite(pin, value); hwDelayMicroseconds(duration)
+#define hwDigitalWriteSafeDelayMicroseconds(pin, value, duration) hwDigitalWrite(pin, value); hwSafeDelayMicroseconds(duration)
+#endif
+
+
 class RCSwitch {
 
   public:
     RCSwitch();
-    
+
     void switchOn(int nGroupNumber, int nSwitchNumber);
     void switchOff(int nGroupNumber, int nSwitchNumber);
     void switchOn(const char* sGroup, int nSwitchNumber);
@@ -85,21 +110,23 @@ class RCSwitch {
     void sendTriState(const char* sCodeWord);
     void send(unsigned long long code, unsigned int length);
     void send(const char* sCodeWord);
-    
+
     #if not defined( RCSwitchDisableReceiving )
     void enableReceive(int interrupt);
     void enableReceive();
     void disableReceive();
     bool available();
     void resetAvailable();
-
+#ifdef RADIOLIBSX127X
+    int decodePulseGapDuration(const unsigned int duration);
+#endif
     unsigned long long getReceivedValue();
     unsigned int getReceivedBitlength();
     unsigned int getReceivedDelay();
     unsigned int getReceivedProtocol();
     unsigned int* getReceivedRawdata();
     #endif
-  
+
     void enableTransmit(int nTransmitterPin);
     void disableTransmit();
     void setPulseLength(int nPulseLength);
@@ -167,13 +194,15 @@ class RCSwitch {
     void transmit(HighLow pulses);
 
     #if not defined( RCSwitchDisableReceiving )
+#ifndef RADIOLIBSX127X
     static void handleInterrupt();
+#endif
     static bool receiveProtocol(const int p, unsigned int changeCount);
     int nReceiverInterrupt;
     #endif
     int nTransmitterPin;
     int nRepeatTransmit;
-    
+
     Protocol protocol;
 
     #if not defined( RCSwitchDisableReceiving )
@@ -183,7 +212,7 @@ class RCSwitch {
     volatile static unsigned int nReceivedDelay;
     volatile static unsigned int nReceivedProtocol;
     const static unsigned int nSeparationLimit;
-    /* 
+    /*
      * timings[0] contains sync timing, followed by a number of bits
      */
     static unsigned int timings[RCSWITCH_MAX_CHANGES];
@@ -191,7 +220,7 @@ class RCSwitch {
     static unsigned int buftimings[4];
     #endif
 
-    
+
 };
 
 class Keeloq {

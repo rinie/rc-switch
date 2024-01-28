@@ -1,7 +1,7 @@
 /*
   RCSwitch - Arduino libary for remote control outlet switches
   Copyright (c) 2011 Suat Özgür.  All right reserved.
-  
+
   Contributors:
   - Andre Koehler / info(at)tomate-online(dot)de
   - Gordeev Andrey Vladimirovich / gordeev(at)openpyro(dot)com
@@ -13,7 +13,7 @@
   - Robert ter Vehn / <first name>.<last name>(at)gmail(dot)com
   - Johann Richard / <first name>.<last name>(at)gmail(dot)com
   - Vlad Gheorghe / <first name>.<last name>(at)gmail(dot)com https://github.com/vgheo
-  
+
   Project home: https://github.com/sui77/rc-switch/
 
   This library is free software; you can redistribute it and/or
@@ -59,21 +59,21 @@
 /* Protocol description format
  *
  * {
- *    Pulse length, 
- * 
+ *    Pulse length,
+ *
  *    PreambleFactor,
  *    Preamble {high,low},
- * 
+ *
  *    HeaderFactor,
  *    Header {high,low},
- * 
+ *
  *    "0" bit {high,low},
  *    "1" bit {high,low},
- * 
+ *
  *    Inverted Signal,
  *    Guard time
  * }
- * 
+ *
  * Pulse length: pulse duration (Te) in microseconds,
  *               for example 350
  * PreambleFactor: Number of high and low states to send
@@ -82,7 +82,7 @@
  * Preamble: Pulse shape which defines a preamble bit.
  *           Sent ceil(PreambleFactor/2) times.
  *           For example, {1, 2} with factor 3 would send
- *      _    _   
+ *      _    _
  *     | |__| |__         (each horizontal bar has a duration of Te,
  *                         vertical bars are ignored)
  * HeaderFactor: Number of times to send the header pulse.
@@ -90,22 +90,22 @@
  *           {1, 31} means one pulse of duration 1 Te high and 31 Te low
  *      _
  *     | |_______________________________ (don't count the vertical bars)
- * 
+ *
  * "0" bit: pulse shape defining a data bit, which is a logical "0"
  *          {1, 3} means 1 pulse duration Te high level and 3 low
  *      _
  *     | |___
- * 
+ *
  * "1" bit: pulse shape that defines the data bit, which is a logical "1"
  *          {3, 1} means 3 pulses with a duration of Te high level and 1 low
  *      ___
  *     |   |_
  *
  * (note: to form the state bit Z (Tri-State bit), two codes are combined)
- * 
+ *
  * Inverted Signal: Signal inversion - if true the signal is inverted
  *                  replacing high to low in a transmitted / received packet
- * Guard time: Separation time between two retries. It will be followed by the 
+ * Guard time: Separation time between two retries. It will be followed by the
  *             next preamble of the next packet. In number of Te.
  *             e.g. 39 pulses of duration Te low level
  */
@@ -237,7 +237,7 @@ void RCSwitch::setReceiveTolerance(int nPercent) {
   RCSwitch::nReceiveTolerance = nPercent;
 }
 #endif
-  
+
 
 /**
  * Enable transmissions
@@ -246,7 +246,7 @@ void RCSwitch::setReceiveTolerance(int nPercent) {
  */
 void RCSwitch::enableTransmit(int nTransmitterPin) {
   this->nTransmitterPin = nTransmitterPin;
-  pinMode(this->nTransmitterPin, OUTPUT);
+  hwPinMode(this->nTransmitterPin, OUTPUT);
 }
 
 /**
@@ -440,7 +440,7 @@ char* RCSwitch::getCodeWordC(char sFamily, int nGroup, int nDevice, bool bStatus
   if ( nFamily < 0 || nFamily > 15 || nGroup < 1 || nGroup > 4 || nDevice < 1 || nDevice > 4) {
     return 0;
   }
-  
+
   // encode the family into four bits
   sReturn[nReturnPos++] = (nFamily & 1) ? 'F' : '0';
   sReturn[nReturnPos++] = (nFamily & 2) ? 'F' : '0';
@@ -476,7 +476,7 @@ char* RCSwitch::getCodeWordC(char sFamily, int nGroup, int nDevice, bool bStatus
  *
  * Source: http://www.the-intruder.net/funksteckdosen-von-rev-uber-arduino-ansteuern/
  *
- * @param sGroup        Name of the switch group (A..D, resp. a..d) 
+ * @param sGroup        Name of the switch group (A..D, resp. a..d)
  * @param nDevice       Number of the switch itself (1..3)
  * @param bStatus       Whether to switch on (true) or off (false)
  *
@@ -623,13 +623,13 @@ void RCSwitch::send(unsigned long long code, unsigned int length) {
      }
     // Set the guard Time
     if (protocol.Guard > 0) {
-      digitalWrite(this->nTransmitterPin, LOW);
-      safeDelayMicroseconds(this->protocol.pulseLength * protocol.Guard);
+      hwDigitalWriteSafeDelayMicroseconds(this->nTransmitterPin, LOW,
+          this->protocol.pulseLength * protocol.Guard);
     }
   }
 
   // Disable transmit after sending (i.e., for inverted protocols)
-  digitalWrite(this->nTransmitterPin, LOW);
+  hwDigitalWrite(this->nTransmitterPin, LOW);
 
 #if not defined( RCSwitchDisableReceiving )
   // enable receiver again if we just disabled it
@@ -645,14 +645,14 @@ void RCSwitch::send(unsigned long long code, unsigned int length) {
 void RCSwitch::transmit(HighLow pulses) {
   uint8_t firstLogicLevel = (this->protocol.invertedSignal) ? LOW : HIGH;
   uint8_t secondLogicLevel = (this->protocol.invertedSignal) ? HIGH : LOW;
-  
+
   if (pulses.high > 0) {
-    digitalWrite(this->nTransmitterPin, firstLogicLevel);
-    delayMicroseconds( this->protocol.pulseLength * pulses.high);
+    hwDigitalWriteDelayMicroseconds(this->nTransmitterPin, firstLogicLevel,
+        this->protocol.pulseLength * pulses.high);
   }
   if (pulses.low > 0) {
-    digitalWrite(this->nTransmitterPin, secondLogicLevel);
-    delayMicroseconds( this->protocol.pulseLength * pulses.low);
+    hwDigitalWriteDelayMicroseconds(this->nTransmitterPin, secondLogicLevel,
+        this->protocol.pulseLength * pulses.low);
   }
 }
 
@@ -673,7 +673,7 @@ void RCSwitch::enableReceive() {
 #if defined(RaspberryPi) // Raspberry Pi
     wiringPiISR(this->nReceiverInterrupt, INT_EDGE_BOTH, &handleInterrupt);
 #else // Arduino
-    attachInterrupt(this->nReceiverInterrupt, handleInterrupt, CHANGE);
+    hwAttachInterrupt(this->nReceiverInterrupt, handleInterrupt, CHANGE);
 #endif
   }
 }
@@ -684,7 +684,7 @@ void RCSwitch::enableReceive() {
 void RCSwitch::disableReceive() {
 #if not defined(RaspberryPi) // Arduino
   if (this->nReceiverInterrupt != -1) {
-    detachInterrupt(this->nReceiverInterrupt);
+    hwDetachInterrupt(this->nReceiverInterrupt);
   }
 #endif // For Raspberry Pi (wiringPi) you can't unregister the ISR
   this->nReceiverInterrupt = -1;
@@ -762,7 +762,7 @@ bool RECEIVE_ATTR RCSwitch::receiveProtocol(const int p, unsigned int changeCoun
     // nReceiveTolerance = 60
     // permissible deviation of pulse durations by 60 %
     const unsigned int delayTolerance = delay * RCSwitch::nReceiveTolerance / 100;
-    
+
     // 0 - sync before preamble or data
     // BeginData - shift by 1 or 2 from sync to preamble/data
     // FirstTiming - shift on preamble to header
@@ -821,6 +821,13 @@ bool RECEIVE_ATTR RCSwitch::receiveProtocol(const int p, unsigned int changeCoun
     return false;
 }
 
+#ifdef RADIOLIBSX127X
+int RCSwitch::decodePulseGapDuration(const unsigned int duration) {
+  static unsigned int changeCount = 0;
+  //static unsigned long lastTime = 0;
+  static byte repeatCount = 0;
+  int state = 0; // -1 abort, 1 decoded
+#else
 void RECEIVE_ATTR RCSwitch::handleInterrupt() {
 
   static unsigned int changeCount = 0;
@@ -829,6 +836,7 @@ void RECEIVE_ATTR RCSwitch::handleInterrupt() {
 
   const long time = micros();
   const unsigned int duration = time - lastTime;
+#endif
 
   RCSwitch::buftimings[3]=RCSwitch::buftimings[2];
   RCSwitch::buftimings[2]=RCSwitch::buftimings[1];
@@ -839,7 +847,7 @@ void RECEIVE_ATTR RCSwitch::handleInterrupt() {
       changeCount == 156 ||
       (diff(RCSwitch::buftimings[3], RCSwitch::buftimings[2]) < 50 &&
         diff(RCSwitch::buftimings[2], RCSwitch::buftimings[1]) < 50 &&
-        changeCount > 25)) { 
+        changeCount > 25)) {
     // a long pulse with a duration of more than nSeparationLimit is received (4300)
     // A long stretch without signal level change occurred. This could
     // be the gap between two transmission.
@@ -849,7 +857,7 @@ void RECEIVE_ATTR RCSwitch::handleInterrupt() {
           diff(RCSwitch::buftimings[2], RCSwitch::timings[2]) < 50 &&
           diff(RCSwitch::buftimings[1], RCSwitch::timings[3]) < 50 &&
           changeCount > 25)) {
-      // if its duration differs from the first impulse, 
+      // if its duration differs from the first impulse,
       // which was accepted earlier, by less than +-200 (originally 200)
       // then we consider this a repeated packet and ignore it
       // This long signal is close in length to the long signal which
@@ -865,6 +873,9 @@ void RECEIVE_ATTR RCSwitch::handleInterrupt() {
         for(unsigned int i = 1; i <= numProto; i++) {
           if (receiveProtocol(i, changeCount)) {
             // receive succeeded for protocol i
+#ifdef RADIOLIBSX127X
+			state = 1;
+#endif
             break;
           }
         }
@@ -883,7 +894,7 @@ void RECEIVE_ATTR RCSwitch::handleInterrupt() {
       changeCount = 4;
     }
   }
- 
+
   // detect overflow
   if (changeCount >= RCSWITCH_MAX_CHANGES) {
     changeCount = 0;
@@ -892,11 +903,15 @@ void RECEIVE_ATTR RCSwitch::handleInterrupt() {
 
   // enter the duration of the next received pulse into the array
   if (changeCount > 0 && duration < 100) { // we ignore noise bursts less than 100 μs
-    RCSwitch::timings[changeCount-1] += duration;   
+    RCSwitch::timings[changeCount-1] += duration;
   } else {
     RCSwitch::timings[changeCount++] = duration;
   }
-  lastTime = time;  
+#ifndef RADIOLIBSX127X
+  lastTime = time;
+#else
+	hwReturn(state);
+#endif
 }
 #endif
 
@@ -999,7 +1014,7 @@ unsigned long Keeloq::ReflectPack(unsigned long PackSrc) {
   for (byte i = 0; i < 32; i++) {
     PackOut = PackOut << 1;
     if (PackSrc & 1) {
-      PackOut = PackOut | 1; 
+      PackOut = PackOut | 1;
     }
     PackSrc = PackSrc >> 1;
   }
