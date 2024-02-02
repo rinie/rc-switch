@@ -827,6 +827,12 @@ int RCSwitch::decodePulseGapDuration(const unsigned int duration) {
   //static unsigned long lastTime = 0;
   static byte repeatCount = 0;
   int state = 0; // -1 abort, 1 decoded
+	if (duration == 0) { // external reset at end
+	    changeCount = 0;
+	    repeatCount = 0;
+	    state = 0;
+		hwReturn(0);
+	}
 #else
 void RECEIVE_ATTR RCSwitch::handleInterrupt() {
 
