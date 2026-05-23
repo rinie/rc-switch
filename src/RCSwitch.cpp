@@ -579,6 +579,51 @@ void RCSwitch::send(const char* sCodeWord) {
  * bits are sent from MSB to LSB, i.e., first the bit at position length-1,
  * then the bit at position length-2, and so on, till finally the bit at position 0.
  */
+
+uint16_t RCSwitch::getPulses(unsigned long long code, unsigned int length,
+                              uint32_t* out, uint16_t maxlen) const {
+  if (protocol.invertedSignal) return 0;
+
+  uint16_t n = 0;
+  unsigned int T = protocol.pulseLength;
+  bool expectHigh = true;
+  bool ok = true;
+
+  // Append one duration at the given level.
+  // Consecutive same-level durations are merged into the previous entry so that
+  // protocols with {0,N} header/preamble pairs (e.g. Keeloq) are handled correctly.
+  auto pushUs = [&](bool isHigh, uint32_t us) {
+    if (!ok || us == 0) return;
+    if (n == 0 && !isHigh) { ok = false; return; }  // cannot start LOW
+    if (n > 0 && isHigh != expectHigh) {
+      // Same level as the most-recent entry — merge rather than break polarity.
+      out[n - 1] += us;
+      return;
+    }
+    if (isHigh != expectHigh) { ok = false; return; }
+    if (n >= maxlen) { ok = false; return; }
+    out[n++] = us;
+    expectHigh = !expectHigh;
+  };
+
+  auto push = [&](uint8_t hi, uint8_t lo) {
+    pushUs(true,  (uint32_t)hi * T);
+    pushUs(false, (uint32_t)lo * T);
+  };
+
+  int pre = (protocol.PreambleFactor / 2) + (protocol.PreambleFactor % 2);
+  for (int i = 0; i < pre; i++)
+    push(protocol.Preamble.high, protocol.Preamble.low);
+  for (int i = 0; i < protocol.HeaderFactor; i++)
+    push(protocol.Header.high, protocol.Header.low);
+  for (int i = (int)length - 1; i >= 0 && ok; i--) {
+    if (code & (1ULL << i)) push(protocol.one.high,  protocol.one.low);
+    else                     push(protocol.zero.high, protocol.zero.low);
+  }
+
+  return ok ? n : 0;
+}
+
 void RCSwitch::send(unsigned long long code, unsigned int length) {
   if (this->nTransmitterPin == -1)
     return;

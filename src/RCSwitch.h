@@ -186,6 +186,16 @@ class RCSwitch {
     void setProtocol(int nProtocol, int nPulseLength);
     const int getNumProtocols(void);
 
+    const Protocol& getProtocol() const { return protocol; }
+
+    // Encode one frame (one repeat) into out[] as alternating HIGH/LOW durations in µs,
+    // starting with HIGH — compatible with rtl_433_ESP::sendPulses().
+    // Consecutive same-level durations (e.g. Keeloq {0,9} header after preamble) are merged.
+    // Returns number of entries written, or 0 if the protocol cannot be serialized
+    // (inverted signal or unavoidable start-LOW).
+    uint16_t getPulses(unsigned long long code, unsigned int length,
+                       uint32_t* out, uint16_t maxlen) const;
+
   private:
     char* getCodeWordA(const char* sGroup, const char* sDevice, bool bStatus);
     char* getCodeWordB(int nGroupNumber, int nSwitchNumber, bool bStatus);
